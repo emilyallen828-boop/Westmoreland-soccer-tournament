@@ -17,7 +17,24 @@ const food=[['Eggs',15,'dozen'],['Muffins',6,'dozen'],['Granola Bars',6,'boxes',
 const equip=[['Propane Tanks',5,'tanks','Please label the tank with your name. Tanks can be picked up Sunday afternoon.'],['6-Foot Folding Tables',10,'tables','Please label the table with your name. Tables can be picked up Sunday afternoon.']];
 const roles={Concessions:{icon:'🥤',desc:'Get our delicious treats into the hands of hungry spectators! Ensure coffee and hot water for cocoa are always ready.',sat:[['8:00–10:00 AM',3,'2 volunteers should arrive at 7:30 AM to help with opening setup.'],['10:00 AM–12:00 PM',2],['12:00–2:00 PM',2],['2:00–4:00 PM',2],['4:00–5:00 PM',3,'Closing concessions: sell remaining prepared food and help with breakdown.']],sun:[['8:00–10:00 AM',3,'Includes opening/setup.'],['10:00 AM–12:00 PM',2],['12:00–2:00 PM',2],['1:00–2:00 PM',3,'Closing concessions: sell remaining prepared food and handle breakdown.']]},Grill:{icon:'🔥',desc:'Grill up our breakfast sandwiches and hot dogs during the day! Help out with concession sales during slower cooking times.',sat:[['8:00–10:00 AM',1],['10:00 AM–12:00 PM',1],['12:00–2:00 PM',1],['2:00–4:00 PM',1]],sun:[['8:00–10:00 AM',1],['10:00 AM–12:00 PM',1],['12:00–2:00 PM',1,'Final grill shift; avoid cooking excess near closing.']]},Facilities:{icon:'🧹',desc:'Check for overflowing trash cans, ensure toilets are stocked, and alert us about any parking violations. Assist with concessions once rounds are completed.',sat:[['9:00–11:00 AM',1],['11:00 AM–1:00 PM',1],['1:00–3:00 PM',1],['3:00–5:00 PM',1]],sun:[['9:00–11:00 AM',1],['11:00 AM–1:00 PM',1]]}};
 const ball={sat:[['8:30–9:50 AM',2,'8:30 & 9:10 games'],['9:50–11:10 AM',2,'9:50 & 10:30 games'],['11:10 AM–12:30 PM',2,'11:10 & 11:50 games'],['12:30–1:50 PM',2,'12:30 & 1:10 games'],['1:50–3:10 PM',2,'1:50 & 2:30 games'],['3:10–4:30 PM',2,'3:10 & 3:50 games'],['4:30–5:10 PM',2,'4:30 game']],sun:[['9:00–10:20 AM',2,'9:00 & 9:40 games'],['10:30–11:50 AM',2,'10:30 & 11:10 championship games']]};
-let state={open:true,signups:[],shopping:null};try{const saved=localStorage.getItem('wmsState');if(saved){const parsed=JSON.parse(saved);if(parsed&&Array.isArray(parsed.signups))state=Object.assign(state,parsed)}}catch(e){try{localStorage.removeItem('wmsState')}catch(_){} }let view='home',pick=null;const save=()=>localStorage.setItem('wmsState',JSON.stringify(state));const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const count=id=>state.signups.filter(x=>x.id===id).reduce((a,x)=>a+(x.qty||1),0);const slots=(id,total)=>Math.max(0,total-count(id));
+let state={open:true,signups:[],shopping:null};
+let storageOK=false;
+function loadSavedState(){
+  try{
+    const saved=window.localStorage.getItem('wmsState');
+    if(saved){
+      const parsed=JSON.parse(saved);
+      if(parsed&&typeof parsed==='object'){
+        state.open=typeof parsed.open==='boolean'?parsed.open:true;
+        state.signups=Array.isArray(parsed.signups)?parsed.signups:[];
+        state.shopping=('shopping' in parsed)?parsed.shopping:null;
+      }
+    }
+    storageOK=true;
+  }catch(e){storageOK=false}
+}
+let view='home',pick=null;
+const save=()=>{if(!storageOK)return;try{window.localStorage.setItem('wmsState',JSON.stringify(state))}catch(e){storageOK=false}};const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const count=id=>state.signups.filter(x=>x.id===id).reduce((a,x)=>a+(x.qty||1),0);const slots=(id,total)=>Math.max(0,total-count(id));
 function frame(body){A.innerHTML=`<main class="shell">${body}<div class="footer">Westmoreland Bulldogs • October 24–25, 2026</div></main>`}
 function home(){frame(`<div class="hero"><div class="eyebrow">WESTMORELAND BULLDOGS</div><h1>47th Annual Westmoreland Middle School Soccer Tournament</h1><p>October 24–25, 2026</p></div>${!state.open?`<div class="card closed"><div class="title">Sign-ups are now closed</div><div class="sub">Thank you for supporting the tournament! Existing commitments are still available under My Sign-Ups.</div></div>`:''}<div class="card money"><div class="title">💵 Monetary Donations</div><div class="sub">Send cash or check to school in a sealed envelope marked “Soccer Tournament Donation”. Checks can be made out to Westmoreland PTA.</div></div>${nav('🍎','Food Donations','Help stock the tournament concession stand','food')}${nav('⚽','Equipment','Propane tanks and folding tables','equipment')}${nav('🙋','Concessions Volunteers','Setup • Concessions • Grill • Facilities','vol')}${nav('⚽','Ball Kids','Two fields • two consecutive games per shift','ball')}${nav('📋','My Sign-Ups','View, edit, or cancel commitments on this device','mine')}<button class="back" onclick="go('admin')">Organizer Dashboard →</button>`)}
 function nav(i,t,s,v){return `<button class="card nav" onclick="go('${v}')"><span class="icon">${i}</span><span class="grow"><span class="title">${t}</span><span class="sub">${s}</span></span><b>›</b></button>`}
@@ -41,7 +58,17 @@ function shopCheck(i,v){if(state.shopping){state.shopping[i].done=v;save()}}
 function all(){const rows=state.signups.length?state.signups.map(x=>`<div class="card"><div class="title">${esc(x.label)}</div><div class="sub">${esc(x.name)} • ${esc(x.contact)}${x.qty>1?` • Qty ${x.qty}`:''}</div><button class="btn danger" onclick="cancelAdmin(${x.key})">Remove</button></div>`).join(''):`<div class="card"><div class="sub">No sign-ups yet.</div></div>`;frame(`<button class="back" onclick="go('admin')">‹ Organizer Dashboard</button><div class="heading">👥 All Sign-Ups</div>${rows}`)}
 function cancelAdmin(k){if(confirm('Remove this commitment?')){state.signups=state.signups.filter(x=>x.key!==k);save();all()}}
 function go(v){view=v;if(v==='home')home();else if(v==='food')donation('food',food);else if(v==='equipment')donation('equipment',equip);else if(v==='vol')volunteers();else if(v==='ball')ballKids();else if(v==='mine')mine();else if(v==='admin')admin();else if(v==='shopping')shopping();else if(v==='all')all();else if(v.startsWith('role:'))rolePage(v.slice(5));scrollTo(0,0)}
-window.go=go;window.signup=signup;window.confirmSignup=confirmSignup;window.cancel=cancel;window.toggleOpen=toggleOpen;window.shopCheck=shopCheck;window.cancelAdmin=cancelAdmin;home();
+window.go=go;window.signup=signup;window.confirmSignup=confirmSignup;window.cancel=cancel;window.toggleOpen=toggleOpen;window.shopCheck=shopCheck;window.cancelAdmin=cancelAdmin;
+function startupError(e){
+  const msg=(e&&(e.stack||e.message))?String(e.stack||e.message):String(e);
+  A.innerHTML='<main class="shell"><div class="card"><div class="title">Tournament startup error</div><div class="sub">Please send this exact message back to ChatGPT:</div><pre style="white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f8;padding:12px;border-radius:10px;margin-top:12px">'+esc(msg)+'</pre></div></main>';
+}
+try{
+  home();
+  setTimeout(function(){
+    try{loadSavedState();home()}catch(e){startupError(e)}
+  },0);
+}catch(e){startupError(e)}
 
 </script>
 </body>
